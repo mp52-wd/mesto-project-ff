@@ -7,7 +7,10 @@ import {
 	getInitialCards,
 	editProfile,
 	addCard,
-	updateAvatar
+	updateAvatar,
+	deleteCard,
+	likeCard,
+	unlikeCard
 } from './components/api'
 
 // Включаем валидацию всех форм
@@ -19,6 +22,41 @@ const profileNameEl = document.querySelector('.profile__title')
 const profileDescEl = document.querySelector('.profile__description')
 
 let userId = null
+let cardToDelete = null // для хранения id и DOM-элемента удаляемой карточки
+
+function handleLike(evt, cardData, likeButton, likeCount) {
+	const isLiked = likeButton.classList.contains('card__like-button_is-active')
+	const likeMethod = isLiked ? unlikeCard : likeCard
+	likeMethod(cardData._id)
+		.then((updatedCard) => {
+			likeButton.classList.toggle('card__like-button_is-active')
+			likeCount.textContent = updatedCard.likes.length
+		})
+		.catch((err) => {
+			console.log(err)
+		})
+}
+
+function handleDelete(evt, cardData, cardElement) {
+	cardToDelete = { id: cardData._id, element: cardElement }
+	showModal(confirmPopup)
+}
+
+const confirmPopup = document.querySelector('.popup_type_confirm')
+const confirmForm = confirmPopup.querySelector('.popup__form')
+confirmForm.addEventListener('submit', function(evt) {
+	evt.preventDefault()
+	if (!cardToDelete) return
+	deleteCard(cardToDelete.id)
+		.then(() => {
+			cardToDelete.element.remove()
+			hideModal(confirmPopup)
+			cardToDelete = null
+		})
+		.catch((err) => {
+			console.log(err)
+		})
+})
 
 // Загрузка данных пользователя и карточек
 Promise.all([getUserInfo(), getInitialCards()])
@@ -29,7 +67,7 @@ Promise.all([getUserInfo(), getInitialCards()])
 		profileImage.style.backgroundImage = `url(${userData.avatar})`
 
 		cards.forEach(card => {
-			const cardElement = createCard(card, handleImageClick, userId)
+			const cardElement = createCard(card, userId, handleImageClick, handleLike, handleDelete)
 			cardContainer.append(cardElement)
 		})
 	})
@@ -128,10 +166,11 @@ function submitCardForm(evt) {
 
 	addCard(inputPlaceName.value, inputLink.value)
 		.then((cardData) => {
-			const cardElement = createCard(cardData, handleImageClick, userId)
+			const cardElement = createCard(cardData, userId, handleImageClick, handleLike, handleDelete)
 			cardContainer.prepend(cardElement)
 			cardForm.reset()
 			hideModal(cardModal)
+			clearValidation(cardForm, validationConfig)
 		})
 		.catch((err) => {
 			console.log(err)

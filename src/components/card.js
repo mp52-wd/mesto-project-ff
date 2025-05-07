@@ -2,9 +2,12 @@ import { likeCard, unlikeCard, deleteCard } from './api'
 
 const templateNode = document.querySelector('#card-template').content
 
-function createCard(cardData, handleImageClick, userId) {
-	const cardTemplate = document.querySelector('#card-template').content
-	const cardElement = cardTemplate.querySelector('.card').cloneNode(true)
+function getCardTemplate() {
+	return templateNode.querySelector('.card').cloneNode(true)
+}
+
+function createCard(cardData, userId, handleImageClick, handleLike, handleDelete) {
+	const cardElement = getCardTemplate()
 	const cardImage = cardElement.querySelector('.card__image')
 	const cardTitle = cardElement.querySelector('.card__title')
 	const likeButton = cardElement.querySelector('.card__like-button')
@@ -15,57 +18,21 @@ function createCard(cardData, handleImageClick, userId) {
 	cardImage.alt = cardData.name
 	cardTitle.textContent = cardData.name
 
-	// Обработка лайков
-	const isLiked = cardData.likes.some(like => like._id === userId)
-	if (isLiked) {
+	// Лайки
+	if (cardData.likes.some(like => like._id === userId)) {
 		likeButton.classList.add('card__like-button_is-active')
 	}
-
 	likeCount.textContent = cardData.likes.length
+	likeButton.addEventListener('click', (evt) => handleLike(evt, cardData, likeButton, likeCount))
 
-	likeButton.addEventListener('click', () => {
-		const isLiked = likeButton.classList.contains('card__like-button_is-active')
-		const likeMethod = isLiked ? unlikeCard : likeCard
-
-		likeMethod(cardData._id)
-			.then((updatedCard) => {
-				likeButton.classList.toggle('card__like-button_is-active')
-				likeCount.textContent = updatedCard.likes.length
-			})
-			.catch((err) => {
-				console.log(err)
-			})
-	})
-
-	// Обработка удаления
+	// Удаление
 	if (cardData.owner._id === userId) {
-		deleteButton.addEventListener('click', () => {
-			const confirmPopup = document.querySelector('.popup_type_confirm')
-			const confirmForm = confirmPopup.querySelector('.popup__form')
-
-			const handleConfirm = (evt) => {
-				evt.preventDefault()
-				deleteCard(cardData._id)
-					.then(() => {
-						cardElement.remove()
-						hideModal(confirmPopup)
-						confirmForm.removeEventListener('submit', handleConfirm)
-					})
-					.catch((err) => {
-						console.log(err)
-					})
-			}
-
-			confirmForm.addEventListener('submit', handleConfirm)
-			showModal(confirmPopup)
-		})
+		deleteButton.addEventListener('click', (evt) => handleDelete(evt, cardData, cardElement))
 	} else {
 		deleteButton.remove()
 	}
 
-	cardImage.addEventListener('click', () => {
-		handleImageClick(cardData)
-	})
+	cardImage.addEventListener('click', () => handleImageClick(cardData))
 
 	return cardElement
 }
